@@ -2,13 +2,18 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Artwork, ARTWORK_CATEGORIES } from "@/lib/types";
+import { Artwork } from "@/lib/types";
 
-export default function GalleryGrid({ artworks }: { artworks: Artwork[] }) {
+interface Props {
+  artworks: Artwork[];
+  categories: string[];
+}
+
+export default function GalleryGrid({ artworks, categories }: Props) {
   const [activeFilter, setActiveFilter] = useState("Semua");
   const [selected, setSelected] = useState<Artwork | null>(null);
 
-  const categories = ["Semua", ...ARTWORK_CATEGORIES];
+  const allCategories = ["Semua", ...categories];
   const filtered = activeFilter === "Semua"
     ? artworks
     : artworks.filter((a) => a.category === activeFilter);
@@ -17,7 +22,7 @@ export default function GalleryGrid({ artworks }: { artworks: Artwork[] }) {
     <>
       {/* Filter buttons */}
       <div className="flex flex-wrap gap-2 justify-center mb-8">
-        {categories.map((cat) => (
+        {allCategories.map((cat) => (
           <button
             key={cat}
             onClick={() => setActiveFilter(cat)}

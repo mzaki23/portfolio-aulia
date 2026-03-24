@@ -4,10 +4,10 @@ import GalleryGrid from "@/components/gallery/GalleryGrid";
 
 export default async function GalleryPage() {
   const supabase = await createClient();
-  const { data: artworks } = await supabase
-    .from("artworks")
-    .select("*")
-    .order("sort_order");
+  const [{ data: artworks }, { data: categories }] = await Promise.all([
+    supabase.from("artworks").select("*").order("sort_order"),
+    supabase.from("categories").select("*").order("sort_order"),
+  ]);
 
   return (
     <>
@@ -24,8 +24,7 @@ export default async function GalleryPage() {
           <p className="text-center font-bold text-[#1e5b85] mb-10">
             Semua koleksi kaligrafi Arab & seni islami ✨
           </p>
-
-          <GalleryGrid artworks={artworks ?? []} />
+          <GalleryGrid artworks={artworks ?? []} categories={categories?.map(c => c.name) ?? []} />
         </div>
       </main>
     </>

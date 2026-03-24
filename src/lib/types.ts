@@ -49,14 +49,9 @@ export interface Experience {
   sort_order: number;
 }
 
-export const ARTWORK_CATEGORIES = [
-  'Khat Tsuluts',
-  'Khat Diwani',
-  'Khat Naskhi',
-  'Kanvas Modern',
-  'Desain Logo',
-  'Khat Kufi',
-  'Modern',
-] as const;
-
-export type ArtworkCategory = typeof ARTWORK_CATEGORIES[number];
+export interface Category {
+  id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
+}

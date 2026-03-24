@@ -2,16 +2,25 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Artwork, ARTWORK_CATEGORIES } from "@/lib/types";
+import { Artwork, Category } from "@/lib/types";
 import { createArtwork, updateArtwork, deleteArtwork } from "@/lib/actions/artworks";
+import { addCategory, deleteCategory } from "@/lib/actions/categories";
 
-export default function GalleryManager({ artworks: initArtworks }: { artworks: Artwork[] }) {
+interface Props {
+  artworks: Artwork[];
+  categories: Category[];
+}
+
+export default function GalleryManager({ artworks: initArtworks, categories: initCategories }: Props) {
   const [artworks, setArtworks] = useState(initArtworks);
+  const [categories, setCategories] = useState(initCategories);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Artwork | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [newCatName, setNewCatName] = useState("");
+  const [catLoading, setCatLoading] = useState(false);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -52,8 +61,69 @@ export default function GalleryManager({ artworks: initArtworks }: { artworks: A
     showToast("Karya dihapus.");
   }
 
+  async function handleAddCategory() {
+    if (!newCatName.trim()) return;
+    setCatLoading(true);
+    const fd = new FormData();
+    fd.append("name", newCatName.trim());
+    const result = await addCategory(fd);
+    setCatLoading(false);
+    if (result?.error) { showToast("Error: " + result.error); return; }
+    showToast(`Kategori "${newCatName.trim()}" ditambahkan! ✨`);
+    setNewCatName("");
+    window.location.reload();
+  }
+
+  async function handleDeleteCategory(id: string, name: string) {
+    if (!confirm(`Hapus kategori "${name}"? Karya dengan kategori ini tidak ikut terhapus.`)) return;
+    const result = await deleteCategory(id);
+    if (result?.error) { showToast("Error: " + result.error); return; }
+    setCategories(categories.filter((c) => c.id !== id));
+    showToast(`Kategori "${name}" dihapus.`);
+  }
+
   return (
     <>
+      {/* Kategori Manager */}
+      <div className="retro-window-static p-5 mb-6">
+        <div className="window-header mb-4"><span>categories.json</span></div>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {categories.map((cat) => (
+            <div key={cat.id} className="flex items-center gap-1 bg-[#c2eb96] border-2 border-[#1e5b85] rounded-full px-3 py-1">
+              <span className="text-sm font-bold text-[#1e5b85]">{cat.name}</span>
+              <button
+                onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                className="text-[#1e5b85] hover:text-red-500 transition-colors ml-1 text-xs font-bold leading-none"
+                title="Hapus kategori"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          {categories.length === 0 && (
+            <p className="text-sm text-[#6dbcdb] font-bold">Belum ada kategori.</p>
+          )}
+        </div>
+        <div className="flex gap-2 max-w-sm">
+          <input
+            type="text"
+            value={newCatName}
+            onChange={(e) => setNewCatName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
+            placeholder="Nama kategori baru..."
+            className="retro-input flex-1"
+          />
+          <button
+            onClick={handleAddCategory}
+            disabled={catLoading || !newCatName.trim()}
+            className="retro-btn retro-btn-blue disabled:opacity-60 flex-shrink-0"
+          >
+            {catLoading ? <i className="fas fa-spinner fa-spin" /> : <><i className="fas fa-plus" /> Tambah</>}
+          </button>
+        </div>
+      </div>
+
+      {/* Artworks */}
       <div className="flex justify-between items-center mb-4">
         <p className="font-bold text-[#1e5b85]">{artworks.length} karya</p>
         <button onClick={openAdd} className="retro-btn retro-btn-blue">
@@ -63,7 +133,7 @@ export default function GalleryManager({ artworks: initArtworks }: { artworks: A
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {artworks.map((artwork) => (
-          <div key={artwork.id} className="retro-window-static group">
+          <div key={artwork.id} className="retro-window-static">
             <div className="window-header">
               <span className="truncate max-w-[140px] text-xs">{artwork.title}</span>
               <span className="text-xs bg-[#c2eb96] px-2 py-0.5 rounded-full border border-[#1e5b85]">{artwork.category}</span>
@@ -102,7 +172,7 @@ export default function GalleryManager({ artworks: initArtworks }: { artworks: A
         </div>
       )}
 
-      {/* Modal */}
+      {/* Modal Tambah/Edit Artwork */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="retro-window-static w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -117,11 +187,14 @@ export default function GalleryManager({ artworks: initArtworks }: { artworks: A
               </div>
               <div>
                 <label className="block text-sm font-bold text-[#1e5b85] mb-1">Kategori *</label>
-                <select name="category" defaultValue={editing?.category ?? ARTWORK_CATEGORIES[0]} className="retro-input" required>
-                  {ARTWORK_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
+                <select name="category" defaultValue={editing?.category ?? categories[0]?.name ?? ""} className="retro-input" required>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.name}>{cat.name}</option>
                   ))}
                 </select>
+                {categories.length === 0 && (
+                  <p className="text-xs text-red-400 mt-1">Tambah kategori dulu sebelum menambah karya.</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-bold text-[#1e5b85] mb-1">Deskripsi</label>
@@ -147,10 +220,12 @@ export default function GalleryManager({ artworks: initArtworks }: { artworks: A
                   }} />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="submit" disabled={loading} className="retro-btn retro-btn-blue flex-1 justify-center disabled:opacity-60">
+                <button type="submit" disabled={loading || categories.length === 0}
+                  className="retro-btn retro-btn-blue flex-1 justify-center disabled:opacity-60">
                   {loading ? <><i className="fas fa-spinner fa-spin" /> Menyimpan...</> : <><i className="fas fa-save" /> Simpan</>}
                 </button>
-                <button type="button" onClick={() => setShowModal(false)} className="retro-btn border-[#6dbcdb] text-[#6dbcdb] justify-center">
+                <button type="button" onClick={() => setShowModal(false)}
+                  className="retro-btn border-[#6dbcdb] text-[#6dbcdb] justify-center">
                   Batal
                 </button>
               </div>
